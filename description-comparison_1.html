@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Description Comparison</title>
+<style>
+  :root{
+    --ink:#111111;
+    --navy:#172554;
+    --line:#e2e8f0;
+    --bg:#f4f6fa;
+    --card:#ffffff;
+    --old-tag:#7c2d12;
+    --old-bg:#fff7ed;
+    --new-tag:#065f46;
+    --new-bg:#ecfdf5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color:var(--ink);
+    padding:0 16px 60px;
+  }
+  .page-title{
+    max-width:1200px;
+    margin:0 auto 24px;
+    font-size:20px;
+    font-weight:800;
+    color:var(--navy);
+    letter-spacing:0.3px;
+    padding-top:24px;
+  }
+
+  /* ---- Sticky pager: stays fixed on screen, page content scrolls underneath ---- */
+  #pager{
+    position:sticky;
+    top:0;
+    z-index:100;
+    background:#ffffff;
+    border-bottom:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(0,0,0,0.06);
+    margin:0 -16px 24px;
+    padding:10px 16px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  #pager .pager-nums{
+    flex:1;
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    scrollbar-width:thin;
+    padding:2px 0;
+  }
+  #pager .pager-nums::-webkit-scrollbar{height:4px;}
+  #pager .pager-nums::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+  .pager-btn{
+    flex:0 0 auto;
+    min-width:34px;
+    height:34px;
+    padding:0 8px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--navy);
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .pager-btn:hover{background:#eef2ff;}
+  .pager-btn.active{
+    background:var(--navy);
+    border-color:var(--navy);
+    color:#fff;
+  }
+  .pager-btn.disabled{
+    opacity:0.35;
+    cursor:not-allowed;
+  }
+  .pager-arrow{
+    flex:0 0 auto;
+    min-width:70px;
+    height:34px;
+    padding:0 14px;
+    border-radius:8px;
+    border:1px solid var(--navy);
+    background:var(--navy);
+    color:#fff;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .pager-arrow:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+  @media (max-width:600px){
+    #pager{gap:6px; padding:8px 12px; margin:0 -16px 18px;}
+    .pager-arrow{min-width:0; padding:0 10px; font-size:12px;}
+    .pager-btn{min-width:30px; height:30px; font-size:12px;}
+  }
+  .product{
+    max-width:1200px;
+    margin:0 auto 28px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  }
+  .product-header{
+    padding:14px 18px;
+    background:var(--navy);
+    color:#fff;
+  }
+  .product-header .pid{
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    opacity:0.85;
+    margin-bottom:2px;
+  }
+  .product-header .pname{
+    font-size:16px;
+    font-weight:700;
+  }
+  .compare-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .col{
+    padding:18px;
+    min-width:0;
+  }
+  .col-old{
+    background:var(--old-bg);
+    border-right:1px solid var(--line);
+  }
+  .col-new{
+    background:var(--new-bg);
+  }
+  .col-label{
+    display:inline-block;
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    padding:4px 10px;
+    border-radius:20px;
+    margin-bottom:12px;
+  }
+  .col-old .col-label{
+    background:#fed7aa;
+    color:var(--old-tag);
+  }
+  .col-new .col-label{
+    background:#a7f3d0;
+    color:var(--new-tag);
+  }
+  .desc-body{
+    font-size:13.5px;
+    line-height:1.55;
+    word-wrap:break-word;
+    overflow-x:auto;
+  }
+  .desc-body img{max-width:100%;height:auto;}
+  .desc-body table{width:100%;}
+  .desc-body ul, .desc-body li{max-width:100%;}
+  .empty-note{
+    font-size:13px;
+    color:#94a3b8;
+    font-style:italic;
+    padding:6px 0;
+  }
+
+  /* Mobile: stack old then new, one after another */
+  @media (max-width: 760px){
+    .compare-grid{
+      grid-template-columns:1fr;
+    }
+    .col-old{
+      border-right:none;
+      border-bottom:1px solid var(--line);
+    }
+    .page-title{font-size:17px;}
+    .product-header .pname{font-size:14.5px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="pager">
+  <button class="pager-arrow" id="prev-btn">&larr; Prev</button>
+  <div class="pager-nums" id="pager-nums"></div>
+  <button class="pager-arrow" id="next-btn">Next &rarr;</button>
+</div>
+
+<div class="page-title">Product Description Comparison — Old vs New</div>
+
+<div id="products-container"></div>
+
+<script>
+/* =========================================================================
+   ADD YOUR 10 PRODUCTS HERE.
+   Each product needs: id, name, oldDescription (raw HTML string), newDescription (raw HTML string).
+   Leave oldDescription / newDescription as "" if not ready yet — it will show
+   a placeholder instead of breaking the layout.
+   ========================================================================= */
+const products = [
+  {
+    id: "12612177",
+    name: "Chapati & Puri Maker + Free 6 Pcs Snack Maker (CP2)",
+    oldDescription: `
+<br>
+<b><h3><i>What doesn't go round comes round!</i></h3></b>
+<br>
+<p>
+This chapati and puri maker is of great help in the kitchen. You can make perfectly round rotis and puris among much more. It has a stainless-steel body with mirror finish. It comes with a 6.5-inch diameter that is good enough for making round shaped chapatis. It also has an anti-skid heavy base and a rubber Handle for smooth Operation. You also get 6 pcs sweet and snack maker and that too absolutely free.
+</p>
+<br>
+<ul>
+<b>Highlights</b>:
+<ul>
+<li>Stainless steel body with mirror finish</li>
+<li>16.5 cm diameter, good enough for making round shaped rotis</li>
+<li>Make puris of different flour</li>
+<li>Easy way of preparing round chapatis in a few seconds</li>
+<li>Non electric roti maker</li>
+<li>Free sweet and snack maker</li>
+</ul>
+<br>
+<b>Features of Chapati & Puri Maker</b>:
+<li><b>Type</b>: Chapati & Puri Maker</li>
+<li><b>Material</b>: Stainless steel body</li>
+<li><b>Finish</b>: Mirror finish</li>
+<li><b>Diameter</b>: 16.5 cm</li>
+<li><b>Handle</b>: Stainless steel with plastic grip</li>
+<li><b>Base</b>: Anti skid heavy base</li>
+<li><b>Operation</b>: Manual</li>
+<li><b>Size/Dimensions</b>: 22.5 x 17.2 x 6 cm</li>
+<li><b>Weight</b>: 710 g</li>
+<br>
+<b>Features of Sweet & Snacks Maker</b>:
+<li><b>Type</b>: Kachori Maker, Samosa Maker, Gujiya Maker, Ladoo Maker, Modak Maker & Spiral Cutter</li>
+<li><b>Material</b>: Food Grade Plastic</li>
+<li><b>Operation</b>: Manual</li>
+<li>Compact and easy to store</li>
+<li>Easy & safe to use & clean</li>
+<li>Effortless sweets & snacks preparation with precision</li>
+<li>Make proper shaped fresh kachori, samosa, gujiya, ladoo & modak at home</li>
+<li>Ideal product for all festival across country</li>
+</ul>
+`,
+    newDescription: `
+<div style="margin: 0 auto; color: #1a1a1a; font-size: 15px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Highlights</div>
+ <table style="width: 100%; border-collapse: collapse;">
+ <tbody>
+ <tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">Stainless steel body with mirror finish</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">16.5 cm diameter for round shaped rotis</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">Make puris of different flour</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">Easy round chapatis in seconds</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-right: 5px solid #fff; line-height: 1.4;">Non electric roti maker</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; line-height: 1.4;">Free sweet and snack maker</td>
+</tr>
+ </tbody>
+ </table>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Features</div>
+ <ul style="margin: 0; padding: 0; list-style: none;">
+ <li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Type</b>: Chapati & Puri Maker</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Material</b>: Stainless steel body</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Finish</b>: Mirror finish</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Diameter</b>: 16.5 cm</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Handle</b>: Stainless steel with plastic grip</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Base</b>: Anti skid heavy base</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Operation</b>: Manual</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Size/Dimensions</b>: 22.5 x 17.2 x 6 cm</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Weight</b>: 710 g</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Type (Sweet & Snacks Maker)</b>: Kachori Maker, Samosa Maker, Gujiya Maker, Ladoo Maker, Modak Maker & Spiral Cutter</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Material (Sweet & Snacks Maker)</b>: Food Grade Plastic</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Operation (Sweet & Snacks Maker)</b>: Manual</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Compact and easy to store</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Easy & safe to use & clean</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Effortless sweets & snacks preparation with precision</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Make proper shaped fresh kachori, samosa, gujiya, ladoo & modak at home</li>
+<li style="padding: 8px 0; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Ideal product for all festival across country</li>
+ </ul>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 12px;">Why Buy From Us</div>
+ <div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">What doesn't go round comes round!</div>
+<div style="font-size: 12px; color: #555;">This chapati and puri maker is of great help in the kitchen. You can make perfectly round rotis and puris among much more.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Premium Stainless-Steel Build</div>
+<div style="font-size: 12px; color: #555;">It has a stainless-steel body with mirror finish. It comes with a 6.5-inch diameter that is good enough for making round shaped chapatis.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Smooth & Anti-Skid Operation</div>
+<div style="font-size: 12px; color: #555;">It also has an anti-skid heavy base and a rubber Handle for smooth Operation.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Free Sweet & Snack Maker Included</div>
+<div style="font-size: 12px; color: #555;">You also get 6 pcs sweet and snack maker and that too absolutely free.</div>
+</div>
+ </div>
+</div>
+`
+  },
+
+  // ---- Product 2 (fill in) ----
+  { id: "12614727", name: "Rechargeable Cordless High Pressure Water Spray Gun For Cars & Bikes (RCHGFC)", oldDescription: `<b><h3><i>WASH ANYWHERE, ANYTIME   - Rechargeable Cordless High Pressure Water Spray Gun For Cars & Bikes (RCHGFC)</i></h3></b>
+<br>
+<p>
+Effortlessly clean your car, home, and garden with this portable, rechargeable high-pressure water gun. Its versatile attachments, long hose, and cordless design make cleaning faster and more efficient, even in hard-to-reach areas.
+</p>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/RCHGFC.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<b>Highlights</b>:
+<li>Lightweight Design</li>
+<li>Rechargeable Cordless</li>
+<li>Foam Mode</li>
+<li>Adjustable Nozzle</li>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/Rechargeable-Cordless-High-Pressure-Water-Spray-Gun-For-Cars-&-Bikes-2.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<b>Features</b>:
+<li>Easy to carry</li>
+<li>Adjustable Modes with attachments</li>
+<li>The Motor bottom is the filter which can filter out the garbage</li>
+</ul>
+<br><div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/Rechargeable-Cordless-High-Pressure-Water-Spray-Gun-For-Cars-&-Bikes-3.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Easy to carry anywhere without hassle. Quick assembly saves time and effort.</h4>
+<br>
+<br><div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/Rechargeable-Cordless-High-Pressure-Water-Spray-Gun-For-Cars-&-Bikes-4.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>No restrictions of power cords or sockets. Convenient to use in remote locations.</h4>
+<br>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/Rechargeable-Cordless-High-Pressure-Water-Spray-Gun-For-Cars-&-Bikes-6.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Customizable pressure for various tasks. Efficient cleaning for multiple surfaces.</h4>
+<br>						
+									`, newDescription: `<div style="margin: 0 auto; color: #1a1a1a; font-size: 15px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Highlights</div>
+ <table style="width: 100%; border-collapse: collapse;">
+ <tbody>
+ <tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">Lightweight Design</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">Rechargeable Cordless</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-right: 5px solid #fff; line-height: 1.4;">Foam Mode</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; line-height: 1.4;">Adjustable Nozzle</td>
+</tr>
+ </tbody>
+ </table>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Features</div>
+ <ul style="margin: 0; padding: 0; list-style: none;">
+ <li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Easy to carry</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Adjustable Modes with attachments</li>
+<li style="padding: 8px 0; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> The Motor bottom is the filter which can filter out the garbage</li>
+ </ul>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 12px;">Why Buy From Us</div>
+ <div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">WASH ANYWHERE, ANYTIME</div>
+<div style="font-size: 12px; color: #555;">Effortlessly clean your car, home, and garden with this portable, rechargeable high-pressure water gun. Its versatile attachments, long hose, and cordless design make cleaning faster and more efficient, even in hard-to-reach areas.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Easy & Hassle-Free Portability</div>
+<div style="font-size: 12px; color: #555;">Easy to carry anywhere without hassle. Quick assembly saves time and effort.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Cordless Freedom & Convenience</div>
+<div style="font-size: 12px; color: #555;">No restrictions of power cords or sockets. Convenient to use in remote locations.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Customizable & Efficient Cleaning</div>
+<div style="font-size: 12px; color: #555;">Customizable pressure for various tasks. Efficient cleaning for multiple surfaces.</div>
+</div>
+ </div>
+</div>` },
+  // ---- Product 3 (fill in) ----
+  { id: "12614846", name: "Fitted Double Bed Sheet With 2 Pillow Covers (DBS13)", oldDescription: `<b><h3><i>SLEEP IN COMFORT   - Fitted Double Bedsheet with 2 Pillow Covers (DBS13)</i></h3></b>
+<br>
+<p>
+Fitted double bedsheet with pillow covers is crafted from super soft, skin-friendly fabric for maximum comfort. Featuring a vibrant, color-fast design and wrinkle-resistant material, it ensures a fresh and stylish bedroom look.
+</p>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/DBS13_1.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<b>Highlights</b>:
+<li>Super Soft Fabric</li>
+<li>Breathable & Skin-Friendly</li>
+<li>Wrinkle Resistant</li>
+<li>Color Fast Material</li>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/DBS13_7.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<b>Features</b>:
+<li>Design:-Beautiful Floral Design</li>
+<li>Fabric : Polyester</li>
+<li>Size / Dimension of Double Bed sheet :- 185 x 201 cm</li>
+</ul>
+<br><div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/DBS13_6.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Feels gentle and smooth on the skin.Provides a cozy and relaxing sleep experience.</h4>
+<br>
+<br><div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/DBS13_5.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Retains its vibrant color even after multiple washes.No risk of fading or bleeding, ensuring long-lasting beauty.</h4>
+<br>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/DBS13_4.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Stays smooth without the need for ironing.Simple to wash and quick to dry for hassle-free use.</h4>
+<br>							
+									
+									`, newDescription: `<div style="margin: 0 auto; color: #1a1a1a; font-size: 15px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Highlights</div>
+ <table style="width: 100%; border-collapse: collapse;">
+ <tbody>
+ <tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">Super Soft Fabric</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">Breathable & Skin-Friendly</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-right: 5px solid #fff; line-height: 1.4;">Wrinkle Resistant</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; line-height: 1.4;">Color Fast Material</td>
+</tr>
+ </tbody>
+ </table>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Features</div>
+ <ul style="margin: 0; padding: 0; list-style: none;">
+ <li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Design:-Beautiful Floral Design</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Fabric : Polyester</li>
+<li style="padding: 8px 0; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Size / Dimension of Double Bed sheet :- 185 x 201 cm</li>
+ </ul>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 12px;">Why Buy From Us</div>
+ <div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">SLEEP IN COMFORT</div>
+<div style="font-size: 12px; color: #555;">Fitted double bedsheet with pillow covers is crafted from super soft, skin-friendly fabric for maximum comfort. Featuring a vibrant, color-fast design and wrinkle-resistant material, it ensures a fresh and stylish bedroom look.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Gentle & Smooth Feel</div>
+<div style="font-size: 12px; color: #555;">Feels gentle and smooth on the skin.Provides a cozy and relaxing sleep experience.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Vibrant, Long-Lasting Colors</div>
+<div style="font-size: 12px; color: #555;">Retains its vibrant color even after multiple washes.No risk of fading or bleeding, ensuring long-lasting beauty.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Easy Care & Maintenance</div>
+<div style="font-size: 12px; color: #555;">Stays smooth without the need for ironing.Simple to wash and quick to dry for hassle-free use.</div>
+</div>
+ </div>
+</div>` },
+  // ---- Product 4 (fill in) ----
+  { id: "12614930", name: "Pick Any 1 Foldable Double Bed Mosquito Net (DMN3)", oldDescription: `<b><h3><i>360 DEGREE PROTECTION, ZERO BITES    - Pick Any 1 Foldable Double Bed Mosquito Net (DMN3)</i></h3></b>
+<br>
+<p>
+Enjoy a peaceful sleep with this foldable double bed mosquito net. Its fine mesh design helps in keeping insects away while ensuring breathability. The lightweight, high-quality fabric makes it easy to install, store, and carry.
+</p>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/DMN3_01.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<b>Highlights</b>:
+<li>360 Degree Protection</li>
+<li>Foldable & Lightweight</li>
+<li>Fine Mesh Design</li>
+<li>Washable & Reusable</li>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/DMN3_02.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<b>Features</b>:
+<li>Foldable & Pop-Up Design</li>
+<li>Lightweight & Portable</li>
+<li>Compact Storage</li>
+</ul>
+<br><div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/DMN3_03.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Covers all sides of the bed for complete safety.Keeps mosquitoes and insects away effectively.</h4>
+<br>
+<br><div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/DMN3_04.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Breathable fabric allows fresh air circulation.Blocks even the smallest insects for a peaceful sleep.</h4>
+<br>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/DMN3_05.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Durable and long-lasting for everyday use.Tear-resistant fabric ensures extended usability.</h4>
+<br>`, newDescription: `<div style="margin: 0 auto; color: #1a1a1a; font-size: 15px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Highlights</div>
+ <table style="width: 100%; border-collapse: collapse;">
+ <tbody>
+ <tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">360 Degree Protection</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">Foldable & Lightweight</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-right: 5px solid #fff; line-height: 1.4;">Fine Mesh Design</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; line-height: 1.4;">Washable & Reusable</td>
+</tr>
+ </tbody>
+ </table>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Features</div>
+ <ul style="margin: 0; padding: 0; list-style: none;">
+ <li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Foldable & Pop-Up Design</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Lightweight & Portable</li>
+<li style="padding: 8px 0; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Compact Storage</li>
+ </ul>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 12px;">Why Buy From Us</div>
+ <div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">360 DEGREE PROTECTION, ZERO BITES</div>
+<div style="font-size: 12px; color: #555;">Enjoy a peaceful sleep with this foldable double bed mosquito net. Its fine mesh design helps in keeping insects away while ensuring breathability. The lightweight, high-quality fabric makes it easy to install, store, and carry.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Complete Safety Blanket</div>
+<div style="font-size: 12px; color: #555;">Covers all sides of the bed for complete safety.Keeps mosquitoes and insects away effectively.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Breathable & Fine Mesh Fabric</div>
+<div style="font-size: 12px; color: #555;">Breathable fabric allows fresh air circulation.Blocks even the smallest insects for a peaceful sleep.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Highly Durable Design</div>
+<div style="font-size: 12px; color: #555;">Durable and long-lasting for everyday use.Tear-resistant fabric ensures extended usability.</div>
+</div>
+ </div>
+</div>` },
+  // ---- Product 5 (fill in) ----
+  { id: "12615142", name: "Foot Support For Pain Relief Buy 1 Pair Get  1 Pair (FSP08)", oldDescription: `<b><h3><i>STEP INTO COMFORT    - Foot Support - Buy 1 Pair Get 1 Pair Free (FSP08) </i></h3></b>
+<br>
+<p>
+Experience superior foot support with a lightweight and comfortable design that helps improve stability. Ideal for everyday wear, it provides the right balance of cushioning and breathability.
+</p>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/FSP08_1.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<b>Highlights</b>:
+<li>All-Day Comfort</li>
+<li>Lightweight & Breathable</li>
+<li>Adjustable Fit</li>
+<li>Foot Fatigue Relief</li>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/FSP08_3.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<b>Features</b>:
+<li>Designed to provide enhanced comfort and stability by gently supporting the feet and promoting proper alignment.</li>
+<li>Made from soft, breathable material, it ensures all-day comfort while reducing strain on the feet and joints</li>
+<li>Its ergonomic design helps alleviate pain, making it ideal for individuals suffering from foot discomfort, misalignment, or fatigue</li>
+</ul>
+<br><div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/FSP08_2.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Provides a cushioned feel for feet.Helps maintain foot stability throughout the day</h4>
+<br>
+<br><div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/FSP08_7.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Supports foot muscles for reduced strain.Ideal for long-standing and walking sessions</h4>
+<br>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/FSP08_4.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Encourages a natural foot posture. Reduces pressure on joints and heels</h4>
+<br>						`, newDescription: `<div style="margin: 0 auto; color: #1a1a1a; font-size: 15px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Highlights</div>
+ <table style="width: 100%; border-collapse: collapse;">
+ <tbody>
+ <tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">All-Day Comfort</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">Lightweight & Breathable</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-right: 5px solid #fff; line-height: 1.4;">Adjustable Fit</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; line-height: 1.4;">Foot Fatigue Relief</td>
+</tr>
+ </tbody>
+ </table>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Features</div>
+ <ul style="margin: 0; padding: 0; list-style: none;">
+ <li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Designed to provide enhanced comfort and stability by gently supporting the feet and promoting proper alignment.</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Made from soft, breathable material, it ensures all-day comfort while reducing strain on the feet and joints</li>
+<li style="padding: 8px 0; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Its ergonomic design helps alleviate pain, making it ideal for individuals suffering from foot discomfort, misalignment, or fatigue</li>
+ </ul>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 12px;">Why Buy From Us</div>
+ <div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">STEP INTO COMFORT - Foot Support - Buy 1 Pair Get 1 Pair Free</div>
+<div style="font-size: 12px; color: #555;">Experience superior foot support with a lightweight and comfortable design that helps improve stability. Ideal for everyday wear, it provides the right balance of cushioning and breathability.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Enhanced Cushioning & Stability</div>
+<div style="font-size: 12px; color: #555;">Provides a cushioned feel for feet.Helps maintain foot stability throughout the day</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Reduced Muscle Strain</div>
+<div style="font-size: 12px; color: #555;">Supports foot muscles for reduced strain.Ideal for long-standing and walking sessions</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Natural Posture & Joint Relief</div>
+<div style="font-size: 12px; color: #555;">Encourages a natural foot posture. Reduces pressure on joints and heels</div>
+</div>
+ </div>
+</div>` },
+  // ---- Product 6 (fill in) ----
+  { id: "12615653", name: "Hidden Voice Recorder USB Drive (UFD)", oldDescription: `<b><h3><i>RECORD PRIVATELY, ACCESS EASILY     - Hidden Voice Recorder USB Drive (UFD)   </i></h3></b>
+<br>
+<p>
+ This USB Flash Drive Sound Recorder is a compact, easy to use device that discreetly records audio with crystal clarity. Ideal for meetings, lectures, voice memos, or investigations. Just plug and play.
+</p>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/(UFD).jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<b>Highlights</b>:
+<li>Stealth USB Design</li>
+<li>One Touch Recording</li>
+<li>Auto Save Feature</li>
+<li>8 GB Storage</li>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/(UFD)-4.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<b>Features</b>:
+<li>Built-In Microphone-High-sensitivity mic capable of capturing clear audio within a specific range</li>
+<li>Plug-and-Play- No software required?just plug it into a USB port to access recordings or recharge the battery</li>
+<li>Automatic File Saving-Auto-save function prevents data loss if battery runs out unexpectedly</li>
+</ul>
+<br><div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/(UFD)-3.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4> The USB style build ensures the device blends into everyday surroundings, offering stealthy audio recording. With its one touch operation, even first time users can easily start and stop recordings without drawing attention.</h4>
+<br>
+<br><div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/(UFD)-2.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>Equipped with 8 GB internal memory, this recorder allows you to store hours of voice recordings, eliminating the hassle of constantly transferring files or running out of space during important sessions.</h4>
+<br>
+<br>
+<div>
+<img src="https://images.naptol.com/usr/local/csp/staticContent/product_images/horizontal/375x375/(UFD)-5.jpg" style="max-width: 100%; height: auto;">
+</div>
+<br>
+<h4>The inbuilt high sensitivity microphone ensures crystal clear sound capture from a range of 5?15 feet, making it ideal for recording conversations, lectures, or ambient sounds with impressive clarity.</h4>
+<br>`, newDescription: `<div style="margin: 0 auto; color: #1a1a1a; font-size: 15px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Highlights</div>
+ <table style="width: 100%; border-collapse: collapse;">
+ <tbody>
+ <tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">Stealth USB Design</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">One Touch Recording</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-right: 5px solid #fff; line-height: 1.4;">Auto Save Feature</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; line-height: 1.4;">8 GB Storage</td>
+</tr>
+ </tbody>
+ </table>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Features</div>
+ <ul style="margin: 0; padding: 0; list-style: none;">
+ <li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Built-In Microphone</b>-High-sensitivity mic capable of capturing clear audio within a specific range</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Plug-and-Play</b>- No software required—just plug it into a USB port to access recordings or recharge the battery</li>
+<li style="padding: 8px 0; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> <b>Automatic File Saving</b>-Auto-save function prevents data loss if battery runs out unexpectedly</li>
+ </ul>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 12px;">Why Buy From Us</div>
+ <div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">RECORD PRIVATELY, ACCESS EASILY - Hidden Voice Recorder USB Drive (UFD)</div>
+<div style="font-size: 12px; color: #555;">This USB Flash Drive Sound Recorder is a compact, easy to use device that discreetly records audio with crystal clarity. Ideal for meetings, lectures, voice memos, or investigations. Just plug and play.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Stealthy & Simple Operation</div>
+<div style="font-size: 12px; color: #555;">The USB style build ensures the device blends into everyday surroundings, offering stealthy audio recording. With its one touch operation, even first time users can easily start and stop recordings without drawing attention.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Generous 8 GB Internal Memory</div>
+<div style="font-size: 12px; color: #555;">Equipped with 8 GB internal memory, this recorder allows you to store hours of voice recordings, eliminating the hassle of constantly transferring files or running out of space during important sessions.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">High Sensitivity Audio Capture</div>
+<div style="font-size: 12px; color: #555;">The inbuilt high sensitivity microphone ensures crystal clear sound capture from a range of 5–15 feet, making it ideal for recording conversations, lectures, or ambient sounds with impressive clarity.</div>
+</div>
+ </div>
+</div>` },
+  // ---- Product 7 (fill in) ----
+  { id: "12616181", name: "Rimless Sunglasses Buy1 Get1 Free (2RSG3)", oldDescription: `<br>
+<b><h3><i> MODERN FRAMES,TIMELESS CHARM.- Rimless Sunglasses Buy1 Get1 Free(2RSG3)</i></b></h3>
+<br>
+<p>Step out in style with these rimless sunglasses featuring bold square lenses and a golden toned luxury frame. The slim panther accent detail adds power, elegance, and a modern edge to your look.
+</p>
+<br>
+<b>Highlights</b>:
+<ul>
+<li>Rimless Design </li>
+<li>Golden Frame</li>
+<li>Panther Accent</li>
+<li>Premium Finish</li>
+</ul>
+<br>
+<b>Features</b>:
+<ul>
+<li>Rimless Square Lenses: Modern, bold, and edgy look with a sleek frameless design. </li>
+<li>Great for bright sunlight; reduces glare and enhances clarity.</li>
+<li>Eye-catching and luxurious finish that adds a premium touch to your look.</li>
+</ul>
+<b>USP</b>:
+<ul>
+<li>Rimless Square Lenses – Offer a bold, modern, and edgy look while giving a lightweight feel for all day comfort.</li>
+<li>Golden Toned Frame – Adds a touch of luxury and premium appeal that elevates your overall style.</li>
+<li>Slim Modern Style (Leopard Design) – Unique temple design with a panther accent that symbolizes power and elegance.</li>
+</ul>`, newDescription: `<div style="margin: 0 auto; color: #1a1a1a; font-size: 15px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Highlights</div>
+ <table style="width: 100%; border-collapse: collapse;">
+ <tbody>
+ <tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">Rimless Design</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">Golden Frame</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-right: 5px solid #fff; line-height: 1.4;">Panther Accent</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; line-height: 1.4;">Premium Finish</td>
+</tr>
+ </tbody>
+ </table>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Features</div>
+ <ul style="margin: 0; padding: 0; list-style: none;">
+ <li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Rimless Square Lenses: Modern, bold, and edgy look with a sleek frameless design.</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Great for bright sunlight; reduces glare and enhances clarity.</li>
+<li style="padding: 8px 0; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Eye-catching and luxurious finish that adds a premium touch to your look.</li>
+ </ul>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 12px;">Why Buy From Us</div>
+ <div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">MODERN FRAMES, TIMELESS CHARM - Rimless Sunglasses Buy 1 Get 1 Free (2RSG3)</div>
+<div style="font-size: 12px; color: #555;">Step out in style with these rimless sunglasses featuring bold square lenses and a golden toned luxury frame. The slim panther accent detail adds power, elegance, and a modern edge to your look.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Rimless Square Lenses</div>
+<div style="font-size: 12px; color: #555;">Offer a bold, modern, and edgy look while giving a lightweight feel for all day comfort.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Golden Toned Frame</div>
+<div style="font-size: 12px; color: #555;">Adds a touch of luxury and premium appeal that elevates your overall style.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Slim Modern Style (Leopard Design)</div>
+<div style="font-size: 12px; color: #555;">Unique temple design with a panther accent that symbolizes power and elegance.</div>
+</div>
+ </div>
+</div>` },
+  // ---- Product 8 (fill in) ----
+  { id: "12616288", name: "Perfect Fit Magnetic Knee Support Plus Size Buy 1 Get 1 Free (PFS2)", oldDescription: `<br>
+<b><h3><i> BIGGER SIZE, BETTER FIT. - Perfect Fit Magnetic Knee Support Plus Size Buy 1 Get 1 Free - (PFS2)</i></b></h3>
+<br>
+<p>
+ The Perfect Fit Magnetic Knee Support Plus Size offers 360 degree protection and comfort, designed with magnetic elements to relieve pain and help improve blood circulation. Its adjustable design ensures a secure fit for all body types, making it ideal for daily wear and physical activities.
+</p>
+<br>
+<b>Highlights</b>:
+<ul>
+<li>Magnetic Therapy </li>
+<li>360 Degree Knee Support</li>
+<li>Adjustable Fit</li>
+<li>Buy 1 Get 1</li>
+</ul>
+<br>
+<b>Features</b>:
+<ul>
+<li> It incorporates magnetic therapy for enhanced comfort and improved circulation, providing pain relief and support for knee recovery.</li>
+<li> The knee support is made from breathable, lightweight fabric for long-lasting comfort and is fully adjustable to fit a range of body sizes. </li>
+<li> Its durable construction ensures it can withstand frequent use, making it perfect for sports, daily activities, and therapeutic purposes.</li>
+</ul>
+<b>USP</b>:
+<ul>
+<li> Designed with Magnetic Elements - Promotes better blood circulation, helping relieve knee pain and support faster recovery.</li>
+<li>360 Degree Protection for Enhanced Comfort - Provides complete stability around the knee, reducing the risk of injuries during physical activity.</li>
+<li> Buy 1 Get 1 Free - Offers excellent value, allowing users to have an extra pair for daily use or sharing with a loved one.</li>
+</ul>`, newDescription: `<div style="margin: 0 auto; color: #1a1a1a; font-size: 15px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Highlights</div>
+ <table style="width: 100%; border-collapse: collapse;">
+ <tbody>
+ <tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">Magnetic Therapy</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">360 Degree Knee Support</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-right: 5px solid #fff; line-height: 1.4;">Adjustable Fit</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; line-height: 1.4;">Buy 1 Get 1</td>
+</tr>
+ </tbody>
+ </table>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Features</div>
+ <ul style="margin: 0; padding: 0; list-style: none;">
+ <li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> It incorporates magnetic therapy for enhanced comfort and improved circulation, providing pain relief and support for knee recovery.</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> The knee support is made from breathable, lightweight fabric for long-lasting comfort and is fully adjustable to fit a range of body sizes.</li>
+<li style="padding: 8px 0; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Its durable construction ensures it can withstand frequent use, making it perfect for sports, daily activities, and therapeutic purposes.</li>
+ </ul>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 12px;">Why Buy From Us</div>
+ <div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">BIGGER SIZE, BETTER FIT. - Perfect Fit Magnetic Knee Support Plus Size Buy 1 Get 1 Free - (PFS2)</div>
+<div style="font-size: 12px; color: #555;">The Perfect Fit Magnetic Knee Support Plus Size offers 360 degree protection and comfort, designed with magnetic elements to relieve pain and help improve blood circulation. Its adjustable design ensures a secure fit for all body types, making it ideal for daily wear and physical activities.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Designed with Magnetic Elements</div>
+<div style="font-size: 12px; color: #555;">Promotes better blood circulation, helping relieve knee pain and support faster recovery.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">360 Degree Protection for Enhanced Comfort</div>
+<div style="font-size: 12px; color: #555;">Provides complete stability around the knee, reducing the risk of injuries during physical activity.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Buy 1 Get 1 Free</div>
+<div style="font-size: 12px; color: #555;">Offers excellent value, allowing users to have an extra pair for daily use or sharing with a loved one.</div>
+</div>
+ </div>
+</div>` },
+  // ---- Product 9 (fill in) ----
+  { id: "12616463", name: "Full Face Covered Welding Mask (FWM)", oldDescription: `<br>
+<b><h3><i>EYE SAFETY, FACE SAFETY, FULL SAFETY -Full Face Covered Welding Mask (FWM) </i></b></h3>
+<br>
+<p>
+This Full Face Covered Welding Mask delivers ultimate protection with an auto darkening filter and full face coverage. Designed for comfort and precision, it is ideal for welding, cutting, and grinding tasks
+</p>
+<br>
+<b>Highlights</b>:
+<ul>
+<li>Auto Darkening</li>
+<li>Full Face Protection</li>
+<li>Adjustable Comfort</li>
+<li>Spark & UV Safe </li>
+</ul>
+<br>
+<b>Features</b>:
+<ul>
+<li>Solar-Powered with Sensor Technology: Ensures reliable operation without frequent battery replacement.</li>
+<li>Full Face & Eye Protection: Shields against UV/IR radiation, sparks, and spatter.</li>
+<li>Green-Tinted Wide Lens: Provides clear vision and reduces eye strain.</li>
+</ul>
+<b>USP</b>:
+<ul>
+<li>Auto Darkening Feature - The helmets auto darkening filter instantly adjusts to changing light levels, protecting your eyes from harmful UV and IR rays while ensuring uninterrupted focus on precise welding tasks</li>
+<li>Comfortable & Adjustable Fit - With its adjustable elastic strap and soft cushioning, this welding mask fits securely on any head size, allowing long hours of work without discomfort or strain.</li>
+<li>Full Face Coverage - The full face design shields your entire face from sparks, debris, and heat, providing complete protection while keeping you safe during any welding or grinding task.</li>
+</ul>`, newDescription: `<div style="margin: 0 auto; color: #1a1a1a; font-size: 15px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Highlights</div>
+ <table style="width: 100%; border-collapse: collapse;">
+ <tbody>
+ <tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">Auto Darkening</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">Full Face Protection</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-right: 5px solid #fff; line-height: 1.4;">Adjustable Comfort</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; line-height: 1.4;">Spark & UV Safe</td>
+</tr>
+ </tbody>
+ </table>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Features</div>
+ <ul style="margin: 0; padding: 0; list-style: none;">
+ <li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Solar-Powered with Sensor Technology: Ensures reliable operation without frequent battery replacement.</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Full Face & Eye Protection: Shields against UV/IR radiation, sparks, and spatter.</li>
+<li style="padding: 8px 0; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Green-Tinted Wide Lens: Provides clear vision and reduces eye strain.</li>
+ </ul>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 12px;">Why Buy From Us</div>
+ <div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">EYE SAFETY, FACE SAFETY, FULL SAFETY - Full Face Covered Welding Mask (FWM)</div>
+<div style="font-size: 12px; color: #555;">This Full Face Covered Welding Mask delivers ultimate protection with an auto darkening filter and full face coverage. Designed for comfort and precision, it is ideal for welding, cutting, and grinding tasks.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Auto Darkening Feature</div>
+<div style="font-size: 12px; color: #555;">The helmets auto darkening filter instantly adjusts to changing light levels, protecting your eyes from harmful UV and IR rays while ensuring uninterrupted focus on precise welding tasks.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Comfortable & Adjustable Fit</div>
+<div style="font-size: 12px; color: #555;">With its adjustable elastic strap and soft cushioning, this welding mask fits securely on any head size, allowing long hours of work without discomfort or strain.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Full Face Coverage</div>
+<div style="font-size: 12px; color: #555;">The full face design shields your entire face from sparks, debris, and heat, providing complete protection while keeping you safe during any welding or grinding task.</div>
+</div>
+ </div>
+</div>` },
+  // ---- Product 10 (fill in) ----
+  { id: "12617130", name: "Rimless Adaptive Power Reading Glasses B1G2 Free (3ORG10)", oldDescription: `<br>
+<b><h3><i>ADAPTIVE READING SPECS FOR USE WITHIN +0.5 TO +2.5 RANGE   -Rimless Adaptive Power Reading Glasses Buy 1 Get 2 Free (3ORG10)</i></b></h3>
+<br>
+<p>
+These Rimless Adaptive Power Reading Glasses are designed for those who demand both enhanced vision and comfort in their daily lives. The lightweight construction and flexible Jaguar design hinges ensure a pressure free fit even during extended wear. Crafted with durable materials, these glasses offer the transparency of glass with the resilience of modern technology. Compact and stylish, they are the go to option for anyone seeking a versatile eyewear experience.
+</p>
+<br>
+<b>Highlights</b>:
+<ul>
+<li>Adaptive Power Lenses</li>
+<li>Jaguar Stylized Hinges</li>
+<li>Ultra Lightweight Frame</li>
+<li>Budget Friendly</li>
+</ul>
+<br>
+<b>Features</b>:
+<ul>
+<li>With Jaguar Design</li>
+<li>Lightweight frames</li>
+<li>With 3 Hard Case</li>
+</ul>
+<b>USP</b>:
+<ul>
+<li>Adaptive Reading Power (+0.5 to +2.5) - Fits power range from +0.5 to +2.5 easily  , No need to guess or buy multiple powers.</li>
+<li>Attractive Jaguar Hinges - Combines high end aesthetics with structural integrity, offering a premium, stylish look that stays securely and comfortably on your face.</li>
+<li>Easy to Carry - Ensures your eyewear remains protected, making it effortless to slip into a pocket or bag for clarity on the go.</li>
+</ul>`, newDescription: `<div style="margin: 0 auto; color: #1a1a1a; font-size: 15px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Highlights</div>
+ <table style="width: 100%; border-collapse: collapse;">
+ <tbody>
+ <tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; border-right: 5px solid #fff; line-height: 1.4;">Adaptive Power Lenses</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-bottom: 5px solid #fff; line-height: 1.4;">Jaguar Stylized Hinges</td>
+</tr>
+<tr>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; border-right: 5px solid #fff; line-height: 1.4;">Ultra Lightweight Frame</td>
+<td style="padding: 10px 12px; vertical-align: middle; width: 50%; background: #f8fafc; border-left: 4px solid #172554; font-size: 13.5px; font-weight: 700; color: #111111; line-height: 1.4;">Budget Friendly</td>
+</tr>
+ </tbody>
+ </table>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 10px;">Features</div>
+ <ul style="margin: 0; padding: 0; list-style: none;">
+ <li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> With Jaguar Design</li>
+<li style="padding: 8px 0; border-bottom: 1px solid #eeeeee; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> Lightweight frames</li>
+<li style="padding: 8px 0; font-size: 13.5px; font-weight: 650; color: #111111; line-height: 1.4;"><span style="color: #172554; font-weight: 900; margin-right: 6px;">&#10003;</span> With 3 Hard Case</li>
+ </ul>
+ </div>
+
+ <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+ <div style="margin-bottom: 20px;">
+ <div style="font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #172554; border-bottom: 2px solid #172554; padding-bottom: 5px; margin-bottom: 12px;">Why Buy From Us</div>
+ <div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">ADAPTIVE READING SPECS FOR USE WITHIN +0.5 TO +2.5 RANGE - Rimless Adaptive Power Reading Glasses Buy 1 Get 2 Free (3ORG10)</div>
+<div style="font-size: 12px; color: #555;">These Rimless Adaptive Power Reading Glasses are designed for those who demand both enhanced vision and comfort in their daily lives. The lightweight construction and flexible Jaguar design hinges ensure a pressure free fit even during extended wear. Crafted with durable materials, these glasses offer the transparency of glass with the resilience of modern technology. Compact and stylish, they are the go to option for anyone seeking a versatile eyewear experience.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Adaptive Reading Power (+0.5 to +2.5)</div>
+<div style="font-size: 12px; color: #555;">Fits power range from +0.5 to +2.5 easily , No need to guess or buy multiple powers.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px; margin-bottom: 8px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Attractive Jaguar Hinges</div>
+<div style="font-size: 12px; color: #555;">Combines high end aesthetics with structural integrity, offering a premium, stylish look that stays securely and comfortably on your face.</div>
+</div>
+<div style="border: 1px solid #cbd5e1; border-radius: 5px; padding: 11px 12px;">
+<div style="font-weight: bold; font-size: 13px; color: #172554; margin-bottom: 4px;">Easy to Carry</div>
+<div style="font-size: 12px; color: #555;">Ensures your eyewear remains protected, making it effortless to slip into a pocket or bag for clarity on the go.</div>
+</div>
+ </div>
+</div>` }
+];
+
+const container = document.getElementById('products-container');
+const pagerNums = document.getElementById('pager-nums');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+
+// Build one card per product slot (1 to 10), even empty ones,
+// so the numbered buttons always correspond to "slot number".
+const productEls = products.map((p, idx) => {
+  const wrap = document.createElement('div');
+  wrap.className = 'product';
+  wrap.style.display = 'none'; // only the active one is shown
+  wrap.dataset.index = idx;
+
+  const header = document.createElement('div');
+  header.className = 'product-header';
+  header.innerHTML = `
+    <div class="pid">Product ID: ${p.id || '—'}</div>
+    <div class="pname">${p.name || '(product name not added yet)'}</div>
+  `;
+  wrap.appendChild(header);
+
+  const grid = document.createElement('div');
+  grid.className = 'compare-grid';
+
+  const oldCol = document.createElement('div');
+  oldCol.className = 'col col-old';
+  oldCol.innerHTML = `<span class="col-label">Old Description</span>
+    <div class="desc-body">${p.oldDescription ? p.oldDescription : '<div class="empty-note">No old description added yet.</div>'}</div>`;
+
+  const newCol = document.createElement('div');
+  newCol.className = 'col col-new';
+  newCol.innerHTML = `<span class="col-label">New Description</span>
+    <div class="desc-body">${p.newDescription ? p.newDescription : '<div class="empty-note">No new description added yet.</div>'}</div>`;
+
+  grid.appendChild(oldCol);
+  grid.appendChild(newCol);
+  wrap.appendChild(grid);
+
+  container.appendChild(wrap);
+  return wrap;
+});
+
+// Build the 1..10 pager buttons
+const numBtns = products.map((p, idx) => {
+  const btn = document.createElement('button');
+  btn.className = 'pager-btn';
+  btn.textContent = idx + 1;
+  btn.addEventListener('click', () => showProduct(idx));
+  pagerNums.appendChild(btn);
+  return btn;
+});
+
+let currentIndex = 0;
+
+function showProduct(idx) {
+  if (idx < 0 || idx >= products.length) return;
+  currentIndex = idx;
+
+  productEls.forEach((el, i) => {
+    el.style.display = (i === idx) ? '' : 'none';
+  });
+
+  numBtns.forEach((btn, i) => {
+    btn.classList.toggle('active', i === idx);
+  });
+
+  prevBtn.disabled = (idx === 0);
+  nextBtn.disabled = (idx === products.length - 1);
+
+  // Bring the active number into view within the scrollable pager row
+  numBtns[idx].scrollIntoView({ block: 'nearest', inline: 'center' });
+
+  // Scroll page back up to just under the sticky pager
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+prevBtn.addEventListener('click', () => showProduct(currentIndex - 1));
+nextBtn.addEventListener('click', () => showProduct(currentIndex + 1));
+
+showProduct(0);
+</script>
+
+</body>
+</html>
